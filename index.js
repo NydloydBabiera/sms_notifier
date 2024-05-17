@@ -6,6 +6,7 @@ var numList = [];
 let result = "";
 let msg = "";
 let curlCommand = "";
+let curfewTime = "";
 const dotenv = require("dotenv");
 dotenv.config();
 
@@ -24,8 +25,26 @@ client
     console.error("Error connecting to PostgreSQL database:", err)
   );
 
+cron.schedule('*/2 * * * *', () => {
+  console.log("Retrieve time schedule..")
+  client.query(
+    "SELECT TO_CHAR(curfew_time, 'HH:MI') as  curfew_time from curfew_schedule",
+    (err, res) => {
+      if (err) {
+        console.error("Error executing query:", err);
+        return;
+      }
+
+      console.log("res:", res.rows[0].curfew_time)
+      curfewTime = res.rows[0].curfew_time;
+    }
+  )
+})
+
+// const [hours, minutes] = curfewTime.split(':');
 // Schedule the curl command to execute every minute
-cron.schedule("12 17 * * *", () => {
+// cron.schedule(`${minutes} ${hours} * * *`, () => {
+  cron.schedule(`12 1 * * *`, () => {
   client.query(
     "SELECT contacno FROM user_information where contacno is not null",
     (err, res) => {
@@ -46,7 +65,7 @@ cron.schedule("12 17 * * *", () => {
         }
       }
       msg = "Good evening this is a reminder that curfew hour is within 1 hour";
-      curlCommand = `curl --data "apikey=dd25c4a11713c958924fab687db75aba&number=09353389536&message=test" https://semaphore.co/api/v4/messages`;
+      curlCommand = `curl --data "apikey=dd25c4a11713c958924fab687db75aba&number=${numList}&message=${msg}" https://semaphore.co/api/v4/messages`;
 
       console.log("curlCommand:", curlCommand);
       //   Execute the curl command
