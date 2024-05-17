@@ -1,0 +1,6 @@
+PGUSER="db username"
+PGPASSWORD="db password"
+PGDATABASE="db name"
+PGHOST=
+PGPORT="dbport"
+PORT=
