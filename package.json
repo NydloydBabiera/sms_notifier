@@ -9,9 +9,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.6.8",
     "child_process": "^1.0.2",
     "dotenv": "^16.4.5",
     "node-cron": "^3.0.3",
+    "node-semaphore-sms": "^1.0.4",
     "pg": "^8.11.3"
   }
 }
