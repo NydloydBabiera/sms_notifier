@@ -5,6 +5,7 @@ var request = require("request");
 const axios = require("axios");
 const { Client } = require("pg");
 var numList = [];
+var parentNum = [];
 let result = "";
 
 let curlCommand = "";
@@ -14,6 +15,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 const message =
   "Good evening this is a reminder that curfew hour is within 1 hour";
+const msgParent = "Good evening your son/daughter is not yet in the premises";
 const API_KEY = "dd25c4a11713c958924fab687db75aba";
 const senderName = "USMDorm";
 const client = new Client({
@@ -52,8 +54,10 @@ client.query(
 [hours, minutes] = curfewTime.split(":");
 console.log(`schedule: ${minutes}, ${hours}`);
 // Schedule the curl command to execute every minute
-cron.schedule(`${minutes} ${hours} * * *`, () => {
-  // cron.schedule(`02 00 * * *`, () => {
+// cron.schedule(`${minutes} ${hours} * * *`, () => {
+//task ara sa sms sa tenant
+cron.schedule(`03 09 * * *`, () => {
+  //diri ichange ang time 30 - minutes, 21- hours
   client.query(
     `select contacno from activity_logs logs
   inner join user_information inf on inf.user_id =logs.user_id
@@ -65,50 +69,52 @@ cron.schedule(`${minutes} ${hours} * * *`, () => {
       }
       //   console.log("Query results:", res.rows);
       res.rows.forEach((element) => {
-        numList.push(element.contacno.match(/\d+/g).join(", "));
+        parentNum.push(element.contacno.match(/\d+/g).join(", "));
       });
 
-      for (let i = 0; i < numList.length; i++) {
-        result += numList[i];
+      for (let i = 0; i < parentNum.length; i++) {
+        parentNum += parentNum[i];
 
         if (i < numList.length - 1) {
-          result += ", ";
+          parentNum += ", ";
         }
       }
 
-      // curlCommand = `curl --data "apikey=dd25c4a11713c958924fab687db75aba&number=${numList}&message=${msg}" https://semaphore.co/api/v4/messages`;
-
       sendBulkSms();
-      // // To check your account status:
-      // sms.status(function (error, result) {
-      //   if (!error) console.log(result);
-      // });
-      // // To send SMS to bulk numbers:
-      // // var bulk_numbers = "09179008888,09168769988";
-      // sms.bulksms(numList, msg, function (error, result) {
-      //   if (!error) {
-      //     console.log(result);
-      //   } else console.log(error);
-      // });
-      //   Execute the curl command
-      // exec(curlCommand, (error, stdout, stderr) => {
-      //   if (error) {
-      //     console.error(`exec error: ${error}`);
-      //     return;
-      //   }
-      //   console.log(`stdout: ${stdout}`);
-      //   console.error(`stderr: ${stderr}`);
-      // });
     }
   );
 });
 
-// cron.schedule('1 16 * * *', () => {
-//     console.log('Running a job at 04:00 at PH timezone');
-//   }, {
-//     scheduled: true,
-//     timezone: "Asia/Shanghai"
-//   });
+cron.schedule(`05 09 * * *`, () => {
+  //diri ichange ang time 30 - minutes, 22- hours (10:30PM)
+  console.log("Sending to parents...");
+  client.query(
+    `select gi.contactno from activity_logs logs
+    inner join user_information inf on inf.user_id =logs.user_id
+    inner join public.guardian_information gi on inf.user_id = gi.user_id
+    where logs.time_out is null and logs.time_in is not null`,
+    (err, res) => {
+      if (err) {
+        console.error("Error executing query:", err);
+        return;
+      }
+      res.rows.forEach((element) => {
+        console.log(element);
+        parentNum.push(element.contactno.match(/\d+/g).join(", "));
+      });
+
+      for (let i = 0; i < parentNum.length; i++) {
+        result += parentNum[i];
+
+        if (i < parentNum.length - 1) {
+          result += ", ";
+        }
+      }
+
+      sendBulkSmsParent();
+    }
+  );
+});
 
 async function sendSms(number) {
   const url = "https://semaphore.co/api/v4/messages";
@@ -133,5 +139,30 @@ async function sendSms(number) {
 async function sendBulkSms() {
   for (const number of numList) {
     await sendSms(number);
+  }
+}
+async function sendBulkSmsParent() {
+  for (const number of parentNum) {
+    await sendSmsParent(number);
+  }
+}
+
+async function sendSmsParent(number) {
+  const url = "https://semaphore.co/api/v4/messages";
+
+  const params = {
+    apikey: API_KEY,
+    number,
+    message: msgParent,
+  };
+
+  try {
+    const response = await axios.post(url, null, { params });
+    console.log(`SMS sent successfully to ${number}:`, response.data);
+  } catch (error) {
+    console.error(
+      `Error sending SMS to ${number}:`,
+      error.response ? error.response.data : error.message
+    );
   }
 }
